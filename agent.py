@@ -4,10 +4,13 @@ from pysnmp.entity.rfc3413 import cmdrsp, context, ntforg
 from pysnmp.carrier.asynsock.dgram import udp
 from pysnmp.smi import builder
 from pysmi import debug as pysmi_debug
+import asyncio
+import time
+from pysnmp.hlapi.asyncio import *
 
 import threading
 import collections
-import time
+
 
 #can be useful
 #debug.setLogger(debug.Debug('all'))
@@ -24,9 +27,11 @@ class Mib(object):
         self._test_count = 0
 
     def getTestDescription(self):
+        
         return "My Description"
 
     def getTestCount(self):
+        
         with self._lock:
             return self._test_count
 
@@ -49,7 +54,7 @@ class SNMPAgent(object):
     """Implements an Agent that serves the custom MIB and
     can send a trap.
     """
-
+    
     def __init__(self, mibObjects):
         """
         mibObjects - a list of MibObject tuples that this agent
@@ -81,7 +86,7 @@ class SNMPAgent(object):
         mibBuilder.setMibSources(*mibSources)
 
 
-
+        mibBuilder.loadModules('HOST-RESOURCES-MIB')
 
         #our variables will subclass this since we only have scalar types
         #can't load this type directly, need to import it
@@ -99,6 +104,10 @@ class SNMPAgent(object):
             instanceDict = {str(nextVar.name)+"Instance":instance}
             mibBuilder.exportSymbols(mibObject.mibName,
                                      **instanceDict)
+            
+            
+          
+
 
         # tell pysnmp to respotd to get, getnext, and getbulk
         cmdrsp.GetCommandResponder(self._snmpEngine, self._snmpContext)
@@ -125,7 +134,7 @@ class SNMPAgent(object):
 
 
     def sendTrap(self):
-        print "Sending trap"
+        print("Sending trap")
         ntfOrg = ntforg.NotificationOriginator(self._snmpContext)
         errorIndication = ntfOrg.sendNotification(
             self._snmpEngine,
@@ -135,9 +144,10 @@ class SNMPAgent(object):
 
 
     def serve_forever(self):
-        print "Starting agent"
+        print("Starting agent")
         self._snmpEngine.transportDispatcher.jobStarted(1)
         try:
+           
            self._snmpEngine.transportDispatcher.runDispatcher()
         except:
             self._snmpEngine.transportDispatcher.closeDispatcher()
@@ -150,10 +160,12 @@ class Worker(threading.Thread):
 
     def __init__(self, agent, mib):
         threading.Thread.__init__(self)
+       
         self._agent = agent
         self._mib = mib
         self.setDaemon(True)
-
+        
+    
     def run(self):
         while True:
             time.sleep(3)
@@ -166,8 +178,11 @@ if __name__ == '__main__':
                MibObject('MY-MIB', 'testCount', mib.getTestCount)]
     agent = SNMPAgent(objects)
     agent.setTrapReceiver('192.168.1.14', 'traps')
+    
     Worker(agent, mib).start()
+   
+    
     try:
         agent.serve_forever()
     except KeyboardInterrupt:
-        print "Shutting down"
+        print("Shutting down")
